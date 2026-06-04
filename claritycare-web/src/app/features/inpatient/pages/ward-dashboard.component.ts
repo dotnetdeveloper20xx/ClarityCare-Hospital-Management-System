@@ -221,13 +221,19 @@ export class WardDashboardComponent {
 
   loadDashboard() {
     this.isLoading.set(true);
-    this.http.get<{ data: any }>('/api/wards/dashboard').subscribe({
+    this.http.get<any>('/api/wards').subscribe({
       next: (res) => {
-        this.wards.set(res.data.wards || []);
-        this.admissionRequests.set(res.data.pendingAdmissions || []);
+        this.wards.set(res.data || []);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
+    });
+    // Load pending admissions
+    this.http.get<any>('/api/admissions/pending').subscribe({
+      next: (res) => {
+        this.admissionRequests.set(res.data || []);
+      },
+      error: () => {}
     });
   }
 
@@ -242,10 +248,9 @@ export class WardDashboardComponent {
       this.wardPatients.set([]);
       return;
     }
-    this.http.get<{ data: any }>(`/api/wards/${this.selectedWardId}/beds`).subscribe({
+    this.http.get<any>(`/api/wards/${this.selectedWardId}/beds`).subscribe({
       next: (res) => {
-        this.beds.set(res.data.beds || []);
-        this.wardPatients.set(res.data.patients || []);
+        this.beds.set(res.data || []);
       },
       error: () => {}
     });
@@ -276,7 +281,7 @@ export class WardDashboardComponent {
   }
 
   admitPatient(admissionId: string) {
-    this.http.put(`/api/admissions/${admissionId}/admit`, {}).subscribe({
+    this.http.post(`/api/admissions/${admissionId}/admit`, {}).subscribe({
       next: () => this.loadDashboard(),
       error: () => {}
     });

@@ -136,10 +136,10 @@ export class AppointmentDashboardComponent {
 
   loadDashboard() {
     this.isLoading.set(true);
-    this.http.get<{ data: { appointments: TodayAppointment[]; summary: AppointmentSummary } }>('/api/appointments/today-dashboard').subscribe({
+    this.http.get<any>('/api/reception/today-dashboard').subscribe({
       next: (res) => {
-        this.appointments.set(res.data.appointments);
-        this.summary.set(res.data.summary);
+        this.appointments.set(res.appointments || []);
+        this.summary.set(res.summary || { total: 0, arrived: 0, waiting: 0, completed: 0, noShow: 0, inConsultation: 0 });
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
@@ -158,14 +158,14 @@ export class AppointmentDashboardComponent {
   }
 
   markArrived(appointmentId: string) {
-    this.http.put(`/api/appointments/${appointmentId}/mark-arrived`, {}).subscribe({
+    this.http.post(`/api/appointments/${appointmentId}/arrive`, {}).subscribe({
       next: () => this.loadDashboard(),
       error: () => {}
     });
   }
 
   markNoShow(appointmentId: string) {
-    this.http.put(`/api/appointments/${appointmentId}/mark-no-show`, {}).subscribe({
+    this.http.post(`/api/appointments/${appointmentId}/no-show`, {}).subscribe({
       next: () => this.loadDashboard(),
       error: () => {}
     });

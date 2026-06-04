@@ -183,11 +183,30 @@ export class BillingDashboardComponent {
 
   loadDashboard() {
     this.isLoading.set(true);
-    this.http.get<{ data: any }>('/api/invoices/dashboard').subscribe({
+    this.http.get<any>('/api/invoices/search', { params: { pageSize: '20' } }).subscribe({
       next: (res) => {
-        this.summary.set(res.data.summary);
-        this.recentInvoices.set(res.data.recentInvoices || []);
-        this.monthlyRevenue.set(res.data.monthlyRevenue || 0);
+        const invoices = res.data || [];
+        this.recentInvoices.set(invoices.map((inv: any) => ({
+          invoiceId: inv.invoiceId,
+          invoiceNumber: inv.invoiceNumber,
+          patientName: inv.patientName || 'Unknown',
+          hospitalNumber: inv.hospitalNumber || '',
+          totalAmount: inv.totalAmount,
+          paidAmount: inv.totalAmount - (inv.balanceDue || 0),
+          status: typeof inv.status === 'number' ? ['Draft','Issued','PartiallyPaid','Paid','Cancelled','Overdue'][inv.status] : inv.status,
+          createdAt: inv.invoiceDate || inv.createdAt,
+          dueDate: inv.invoiceDate
+        })));
+        const total = invoices.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0);
+        const outstanding = invoices.reduce((sum: number, i: any) => sum + (i.balanceDue || 0), 0);
+        this.summary.set({
+          revenueToday: total - outstanding,
+          outstandingTotal: outstanding,
+          overdueTotal: invoices.filter((i: any) => i.status === 5 || i.status === 'Overdue').reduce((s: number, i: any) => s + (i.balanceDue || 0), 0),
+          invoicesCreatedToday: invoices.length,
+          paymentsReceivedToday: 0
+        });
+        this.monthlyRevenue.set(total);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)

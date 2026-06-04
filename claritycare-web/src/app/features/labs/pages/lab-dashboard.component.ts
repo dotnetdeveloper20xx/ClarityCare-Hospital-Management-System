@@ -209,12 +209,12 @@ export class LabDashboardComponent {
 
   loadDashboard() {
     this.isLoading.set(true);
-    this.http.get<{ data: any }>('/api/labs/dashboard').subscribe({
+    this.http.get<any>('/api/lab/dashboard').subscribe({
       next: (res) => {
-        this.pendingRequests.set(res.data.pendingRequests || []);
-        this.inProgressTests.set(res.data.inProgressTests || []);
-        this.completedResults.set(res.data.completedResults || []);
-        this.criticalCount.set(res.data.criticalCount || 0);
+        this.pendingRequests.set(res.pendingRequests || res.urgentRequests || []);
+        this.inProgressTests.set(res.inProgressTests || []);
+        this.completedResults.set(res.completedResults || []);
+        this.criticalCount.set(res.summary?.criticalCount || res.urgentRequests?.length || 0);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)

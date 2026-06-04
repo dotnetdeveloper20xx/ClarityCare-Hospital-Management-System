@@ -144,6 +144,10 @@ export class PatientSearchComponent {
   isLoading = signal(false);
   hasSearched = signal(false);
 
+  constructor() {
+    this.search();
+  }
+
   search() {
     this.isLoading.set(true);
     this.hasSearched.set(true);

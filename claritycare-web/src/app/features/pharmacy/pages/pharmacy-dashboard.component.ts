@@ -5,20 +5,9 @@ import { DatePipe } from '@angular/common';
 interface PrescriptionReview {
   prescriptionId: string;
   patientName: string;
-  hospitalNumber: string;
   prescribedBy: string;
-  prescribedAt: string;
-  items: PrescriptionItem[];
-  status: string;
-  allergyConflicts: string[];
-}
-
-interface PrescriptionItem {
-  medicationName: string;
-  dosage: string;
-  frequency: string;
-  route: string;
-  duration: string;
+  createdAt: string;
+  itemCount: number;
 }
 
 interface DispensingItem {
@@ -88,12 +77,12 @@ interface DispensingItem {
           } @else {
             <div class="space-y-4 mt-2">
               @for (rx of awaitingReview(); track rx.prescriptionId) {
-                <div class="border rounded-lg p-4" [class.border-error]="rx.allergyConflicts.length > 0">
+                <div class="border rounded-lg p-4">
                   <div class="flex justify-between items-start">
                     <div>
                       <div class="font-semibold text-lg">{{ rx.patientName }}</div>
-                      <div class="text-base text-base-content/70">{{ rx.hospitalNumber }} · Prescribed by {{ rx.prescribedBy }}</div>
-                      <div class="text-sm text-base-content/50">{{ rx.prescribedAt | date:'short' }}</div>
+                      <div class="text-base text-base-content/70">Prescribed by {{ rx.prescribedBy }} · {{ rx.itemCount }} item(s)</div>
+                      <div class="text-sm text-base-content/50">{{ rx.createdAt | date:'short' }}</div>
                     </div>
                     <div class="flex gap-2">
                       <button class="btn btn-success btn-sm" (click)="approvePrescription(rx.prescriptionId)"
@@ -105,32 +94,6 @@ interface DispensingItem {
                         Reject
                       </button>
                     </div>
-                  </div>
-                  @if (rx.allergyConflicts.length > 0) {
-                    <div class="mt-2 p-2 bg-error/10 rounded" role="alert">
-                      <span class="text-error font-semibold text-base">⚠ Allergy Conflicts:</span>
-                      @for (conflict of rx.allergyConflicts; track $index) {
-                        <span class="badge badge-error badge-sm ml-2">{{ conflict }}</span>
-                      }
-                    </div>
-                  }
-                  <div class="mt-3">
-                    <table class="table table-sm" aria-label="Prescription items">
-                      <thead>
-                        <tr><th>Medication</th><th>Dosage</th><th>Frequency</th><th>Route</th><th>Duration</th></tr>
-                      </thead>
-                      <tbody>
-                        @for (item of rx.items; track $index) {
-                          <tr>
-                            <td class="font-medium">{{ item.medicationName }}</td>
-                            <td>{{ item.dosage }}</td>
-                            <td>{{ item.frequency }}</td>
-                            <td>{{ item.route }}</td>
-                            <td>{{ item.duration }}</td>
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
                   </div>
                 </div>
               }
@@ -206,13 +169,13 @@ export class PharmacyDashboardComponent {
 
   loadDashboard() {
     this.isLoading.set(true);
-    this.http.get<{ data: any }>('/api/prescriptions/pharmacy-dashboard').subscribe({
+    this.http.get<any>('/api/pharmacy/dashboard').subscribe({
       next: (res) => {
-        this.awaitingReview.set(res.data.awaitingReview || []);
-        this.readyToDispense.set(res.data.readyToDispense || []);
-        this.allergyAlerts.set(res.data.allergyAlerts || []);
-        this.dispensedTodayCount.set(res.data.dispensedTodayCount || 0);
-        this.allergyAlertCount.set(res.data.allergyAlertCount || 0);
+        this.awaitingReview.set(res.awaitingReview || []);
+        this.readyToDispense.set(res.readyToDispense || []);
+        this.allergyAlerts.set(res.allergyAlerts || []);
+        this.dispensedTodayCount.set(res.summary?.dispensedToday || 0);
+        this.allergyAlertCount.set(res.allergyAlerts?.length || 0);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
@@ -220,21 +183,21 @@ export class PharmacyDashboardComponent {
   }
 
   approvePrescription(prescriptionId: string) {
-    this.http.put(`/api/prescriptions/${prescriptionId}/approve`, {}).subscribe({
+    this.http.post(`/api/prescriptions/${prescriptionId}/approve`, {}).subscribe({
       next: () => this.loadDashboard(),
       error: () => {}
     });
   }
 
   rejectPrescription(prescriptionId: string) {
-    this.http.put(`/api/prescriptions/${prescriptionId}/reject`, {}).subscribe({
+    this.http.post(`/api/prescriptions/${prescriptionId}/reject`, {}).subscribe({
       next: () => this.loadDashboard(),
       error: () => {}
     });
   }
 
   markDispensed(prescriptionId: string) {
-    this.http.put(`/api/prescriptions/${prescriptionId}/dispense`, {}).subscribe({
+    this.http.post(`/api/prescriptions/${prescriptionId}/dispense`, {}).subscribe({
       next: () => this.loadDashboard(),
       error: () => {}
     });

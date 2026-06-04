@@ -118,6 +118,24 @@ public class InvoicesController : ControllerBase
         return Ok(new { data = invoice });
     }
 
+    [HttpGet("invoices/search")]
+    public async Task<IActionResult> SearchInvoices(
+        [FromQuery] InvoiceStatus? status, [FromQuery] Guid? patientId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Invoices.AsNoTracking().Include(i => i.Patient).AsQueryable();
+        if (status.HasValue) query = query.Where(i => i.Status == status.Value);
+        if (patientId.HasValue) query = query.Where(i => i.PatientId == patientId.Value);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var data = await query.OrderByDescending(i => i.InvoiceDate)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(i => new { i.InvoiceId, i.InvoiceNumber, i.InvoiceDate, i.TotalAmount, i.BalanceDue, i.Status, PatientName = i.Patient.FirstName + " " + i.Patient.LastName, HospitalNumber = i.Patient.HospitalNumber })
+            .ToListAsync(cancellationToken);
+
+        return Ok(new { data, totalCount, page, pageSize });
+    }
+
     [HttpGet("patients/{patientId:guid}/account-summary")]
     public async Task<IActionResult> GetPatientAccountSummary(Guid patientId, CancellationToken cancellationToken)
     {

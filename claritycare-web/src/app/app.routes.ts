@@ -22,7 +22,7 @@ export const routes: Routes = [
       { path: 'billing', loadComponent: () => import('./features/billing/pages/billing-dashboard.component').then(m => m.BillingDashboardComponent) },
       { path: 'inpatient', loadComponent: () => import('./features/inpatient/pages/ward-dashboard.component').then(m => m.WardDashboardComponent) },
       { path: 'patient-safety', loadComponent: () => import('./features/inpatient/pages/ward-dashboard.component').then(m => m.WardDashboardComponent) },
-      { path: 'documents', loadComponent: () => import('./features/patients/pages/patient-search.component').then(m => m.PatientSearchComponent) },
+      { path: 'documents', loadComponent: () => import('./features/documents/pages/documents.component').then(m => m.DocumentsComponent) },
       { path: 'reports', loadComponent: () => import('./features/reports/pages/operational-dashboard.component').then(m => m.OperationalDashboardComponent) },
       { path: 'admin', loadComponent: () => import('./features/admin/pages/user-management.component').then(m => m.UserManagementComponent) },
       { path: 'integration', loadComponent: () => import('./features/reports/pages/operational-dashboard.component').then(m => m.OperationalDashboardComponent) },

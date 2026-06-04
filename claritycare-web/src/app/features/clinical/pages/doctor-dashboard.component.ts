@@ -182,13 +182,24 @@ export class DoctorDashboardComponent {
 
   loadDashboard() {
     this.isLoading.set(true);
-    this.http.get<{ data: any }>('/api/consultations/doctor-dashboard').subscribe({
+    const today = new Date().toISOString().split('T')[0];
+    this.http.get<any>('/api/appointments/search', {
+      params: { fromDate: today, toDate: today, pageSize: '20' }
+    }).subscribe({
       next: (res) => {
-        this.todayAppointments.set(res.data.todayAppointments || []);
-        this.activeConsultations.set(res.data.activeConsultations || []);
-        this.recentPatients.set(res.data.recentPatients || []);
-        this.arrivedCount.set(res.data.arrivedCount || 0);
-        this.completedCount.set(res.data.completedCount || 0);
+        const appts = res.data || [];
+        this.todayAppointments.set(appts.map((a: any) => ({
+          appointmentId: a.appointmentId,
+          patientId: a.patientId,
+          patientName: a.patientName,
+          hospitalNumber: '',
+          scheduledTime: new Date(a.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+          status: typeof a.status === 'number' ? ['Booked','Arrived','InConsultation','Completed','Cancelled','NoShow'][a.status] : a.status,
+          reason: a.reasonForVisit || '',
+          appointmentType: a.appointmentTypeName || ''
+        })));
+        this.arrivedCount.set(appts.filter((a: any) => a.status === 1 || a.status === 'Arrived').length);
+        this.completedCount.set(appts.filter((a: any) => a.status === 3 || a.status === 'Completed').length);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
