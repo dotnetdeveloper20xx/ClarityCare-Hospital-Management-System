@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ClarityCare.Api/ClarityCare.Api.csproj" />
+    <Project Path="src/ClarityCare.Application/ClarityCare.Application.csproj" />
+    <Project Path="src/ClarityCare.Domain/ClarityCare.Domain.csproj" />
+    <Project Path="src/ClarityCare.Infrastructure/ClarityCare.Infrastructure.csproj" />
+    <Project Path="src/ClarityCare.Shared/ClarityCare.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ClarityCare.Tests/ClarityCare.Tests.csproj" />
+  </Folder>
+</Solution>
