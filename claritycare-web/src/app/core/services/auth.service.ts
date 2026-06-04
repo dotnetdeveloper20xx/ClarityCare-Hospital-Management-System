@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { tap } from 'rxjs';
@@ -8,28 +8,30 @@ interface LoginResponse {
   expiresIn: number;
 }
 
-interface DecodedToken {
-  sub: string;
-  email: string;
-  given_name: string;
-  family_name: string;
-  role: string | string[];
-  permission: string | string[];
-  exp: number;
-}
+// .NET uses full URI claim types in JWT
+const CLAIM_KEYS = {
+  nameIdentifier: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier',
+  email: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
+  givenName: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname',
+  surname: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname',
+  role: 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
+  permission: 'permission',
+};
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly tokenKey = 'claritycare_token';
   private readonly _isAuthenticated = signal(this.hasValidToken());
-  private readonly _userEmail = signal(this.getClaimFromToken('email'));
-  private readonly _userName = signal(this.getUserNameFromToken());
-  private readonly _permissions = signal<string[]>(this.getPermissionsFromToken());
+  private readonly _userEmail = signal<string | null>(this.extractEmail());
+  private readonly _userName = signal<string | null>(this.extractUserName());
+  private readonly _permissions = signal<string[]>(this.extractPermissions());
+  private readonly _roles = signal<string[]>(this.extractRoles());
 
   readonly isAuthenticated = this._isAuthenticated.asReadonly();
   readonly userEmail = this._userEmail.asReadonly();
   readonly userName = this._userName.asReadonly();
   readonly permissions = this._permissions.asReadonly();
+  readonly roles = this._roles.asReadonly();
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -37,10 +39,7 @@ export class AuthService {
     return this.http.post<LoginResponse>('/api/auth/login', { email, password }).pipe(
       tap(response => {
         localStorage.setItem(this.tokenKey, response.token);
-        this._isAuthenticated.set(true);
-        this._userEmail.set(this.getClaimFromToken('email'));
-        this._userName.set(this.getUserNameFromToken());
-        this._permissions.set(this.getPermissionsFromToken());
+        this.refreshState();
       })
     );
   }
@@ -51,6 +50,7 @@ export class AuthService {
     this._userEmail.set(null);
     this._userName.set(null);
     this._permissions.set([]);
+    this._roles.set([]);
     this.router.navigate(['/auth/login']);
   }
 
@@ -62,43 +62,64 @@ export class AuthService {
     return this._permissions().includes(permission);
   }
 
+  hasRole(role: string): boolean {
+    return this._roles().includes(role);
+  }
+
+  private refreshState(): void {
+    this._isAuthenticated.set(this.hasValidToken());
+    this._userEmail.set(this.extractEmail());
+    this._userName.set(this.extractUserName());
+    this._permissions.set(this.extractPermissions());
+    this._roles.set(this.extractRoles());
+  }
+
   private hasValidToken(): boolean {
     const token = this.getToken();
     if (!token) return false;
     const decoded = this.decodeToken(token);
-    return decoded ? decoded.exp * 1000 > Date.now() : false;
+    if (!decoded) return false;
+    return decoded['exp'] * 1000 > Date.now();
   }
 
-  private decodeToken(token: string): DecodedToken | null {
+  private decodeToken(token: string): Record<string, any> | null {
     try {
       const payload = token.split('.')[1];
-      return JSON.parse(atob(payload));
+      const decoded = JSON.parse(atob(payload));
+      return decoded;
     } catch {
       return null;
     }
   }
 
-  private getClaimFromToken(claim: string): string | null {
-    const token = this.getToken();
-    if (!token) return null;
-    const decoded = this.decodeToken(token);
-    return decoded ? (decoded as any)[claim] : null;
-  }
-
-  private getUserNameFromToken(): string | null {
-    const token = this.getToken();
-    if (!token) return null;
-    const decoded = this.decodeToken(token);
+  private extractEmail(): string | null {
+    const decoded = this.decodeToken(this.getToken() ?? '');
     if (!decoded) return null;
-    return `${decoded.given_name} ${decoded.family_name}`;
+    return decoded[CLAIM_KEYS.email] || decoded['email'] || null;
   }
 
-  private getPermissionsFromToken(): string[] {
-    const token = this.getToken();
-    if (!token) return [];
-    const decoded = this.decodeToken(token);
+  private extractUserName(): string | null {
+    const decoded = this.decodeToken(this.getToken() ?? '');
+    if (!decoded) return null;
+    const first = decoded[CLAIM_KEYS.givenName] || decoded['given_name'] || '';
+    const last = decoded[CLAIM_KEYS.surname] || decoded['family_name'] || '';
+    const name = `${first} ${last}`.trim();
+    return name || null;
+  }
+
+  private extractPermissions(): string[] {
+    const decoded = this.decodeToken(this.getToken() ?? '');
     if (!decoded) return [];
-    const perms = decoded.permission;
-    return Array.isArray(perms) ? perms : perms ? [perms] : [];
+    const perms = decoded[CLAIM_KEYS.permission];
+    if (!perms) return [];
+    return Array.isArray(perms) ? perms : [perms];
+  }
+
+  private extractRoles(): string[] {
+    const decoded = this.decodeToken(this.getToken() ?? '');
+    if (!decoded) return [];
+    const roles = decoded[CLAIM_KEYS.role];
+    if (!roles) return [];
+    return Array.isArray(roles) ? roles : [roles];
   }
 }
