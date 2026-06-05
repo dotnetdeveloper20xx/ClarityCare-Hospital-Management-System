@@ -1,7 +1,10 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { DatePipe, CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
+import { ApiService } from '../../../core/services/api.service';
+import { DataTableComponent, TableColumn, TableAction } from '../../../shared/components/data-table/data-table.component';
+import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 
 interface BillingSummary {
   revenueToday: number;
@@ -26,7 +29,7 @@ interface RecentInvoice {
 @Component({
   selector: 'app-billing-dashboard',
   standalone: true,
-  imports: [DatePipe, CurrencyPipe],
+  imports: [CurrencyPipe, DatePipe, PaginationComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
@@ -141,6 +144,9 @@ interface RecentInvoice {
             </div>
           }
         </div>
+        <div class="px-4 pb-4">
+          <app-pagination [page]="currentPage" [pageSize]="pageSize" [totalCount]="totalCount()" (pageChange)="loadPage($event)" />
+        </div>
       </div>
 
       <!-- Financial Totals -->
@@ -176,6 +182,9 @@ export class BillingDashboardComponent {
   });
   recentInvoices = signal<RecentInvoice[]>([]);
   monthlyRevenue = signal(0);
+  currentPage = 1;
+  pageSize = 5;
+  totalCount = signal(0);
 
   constructor() {
     this.loadDashboard();
@@ -183,9 +192,10 @@ export class BillingDashboardComponent {
 
   loadDashboard() {
     this.isLoading.set(true);
-    this.http.get<any>('/api/invoices/search', { params: { pageSize: '20' } }).subscribe({
+    this.http.get<any>('/api/invoices/search', { params: { pageSize: this.pageSize.toString(), page: this.currentPage.toString() } }).subscribe({
       next: (res) => {
         const invoices = res.data || [];
+        this.totalCount.set(res.totalCount || 0);
         this.recentInvoices.set(invoices.map((inv: any) => ({
           invoiceId: inv.invoiceId,
           invoiceNumber: inv.invoiceNumber,
@@ -211,6 +221,11 @@ export class BillingDashboardComponent {
       },
       error: () => this.isLoading.set(false)
     });
+  }
+
+  loadPage(page: number) {
+    this.currentPage = page;
+    this.loadDashboard();
   }
 
   getStatusClass(status: string): string {

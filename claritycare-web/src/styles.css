@@ -2,13 +2,218 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles */
-html {
-  font-size: 16px;
-  -webkit-font-smoothing: antialiased;
+/* ============================================
+   CLARITYCARE DESIGN SYSTEM
+   Enterprise Healthcare Application Theme
+   ============================================ */
+
+@layer base {
+  :root {
+    /* Brand Colors */
+    --cc-primary: #4f46e5;
+    --cc-primary-hover: #4338ca;
+    --cc-primary-light: #eef2ff;
+    --cc-primary-50: #f5f3ff;
+
+    /* Semantic Colors */
+    --cc-success: #059669;
+    --cc-success-light: #ecfdf5;
+    --cc-warning: #d97706;
+    --cc-warning-light: #fffbeb;
+    --cc-danger: #dc2626;
+    --cc-danger-light: #fef2f2;
+    --cc-info: #0284c7;
+    --cc-info-light: #f0f9ff;
+
+    /* Neutral Scale */
+    --cc-bg: #f8fafc;
+    --cc-surface: #ffffff;
+    --cc-border: #e2e8f0;
+    --cc-border-strong: #cbd5e1;
+    --cc-text: #1e293b;
+    --cc-text-secondary: #64748b;
+    --cc-text-muted: #94a3b8;
+
+    /* Spacing */
+    --cc-page-padding: 1.5rem;
+    --cc-card-padding: 1.5rem;
+    --cc-section-gap: 1.5rem;
+
+    /* Radius */
+    --cc-radius: 0.75rem;
+    --cc-radius-sm: 0.5rem;
+    --cc-radius-lg: 1rem;
+
+    /* Shadows */
+    --cc-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --cc-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+
+    /* Typography */
+    --cc-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --cc-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--cc-font);
+    color: var(--cc-text);
+    background: var(--cc-bg);
+    line-height: 1.6;
+  }
 }
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.6;
+/* ============================================
+   COMPONENT LAYER — Reusable Patterns
+   ============================================ */
+@layer components {
+  /* Page Layout */
+  .cc-page-header {
+    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6;
+  }
+  .cc-page-title {
+    @apply text-2xl font-bold text-gray-900 tracking-tight;
+  }
+  .cc-page-subtitle {
+    @apply text-sm text-gray-500 mt-0.5;
+  }
+
+  /* Cards */
+  .cc-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200;
+  }
+  .cc-card-body {
+    @apply p-6;
+  }
+  .cc-card-header {
+    @apply flex items-center justify-between mb-4;
+  }
+  .cc-card-title {
+    @apply text-lg font-semibold text-gray-900;
+  }
+
+  /* Buttons */
+  .cc-btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-150 text-sm px-4 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  .cc-btn-primary {
+    @apply cc-btn bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500;
+  }
+  .cc-btn-secondary {
+    @apply cc-btn bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-gray-500;
+  }
+  .cc-btn-danger {
+    @apply cc-btn bg-red-600 hover:bg-red-700 text-white focus:ring-red-500;
+  }
+  .cc-btn-success {
+    @apply cc-btn bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500;
+  }
+  .cc-btn-ghost {
+    @apply cc-btn bg-transparent hover:bg-gray-100 text-gray-600;
+  }
+  .cc-btn-sm {
+    @apply text-xs px-3 py-1.5;
+  }
+  .cc-btn-lg {
+    @apply text-base px-5 py-3;
+  }
+
+  /* Form Inputs */
+  .cc-input {
+    @apply w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-lg bg-white placeholder-gray-400 transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none;
+  }
+  .cc-input-error {
+    @apply border-red-400 focus:border-red-500 focus:ring-red-500/20;
+  }
+  .cc-label {
+    @apply block text-sm font-medium text-gray-700 mb-1.5;
+  }
+  .cc-select {
+    @apply cc-input appearance-none bg-no-repeat bg-right pr-10;
+  }
+  .cc-textarea {
+    @apply cc-input resize-none;
+  }
+
+  /* Badges/Status */
+  .cc-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .cc-badge-success {
+    @apply cc-badge bg-emerald-100 text-emerald-800;
+  }
+  .cc-badge-warning {
+    @apply cc-badge bg-amber-100 text-amber-800;
+  }
+  .cc-badge-danger {
+    @apply cc-badge bg-red-100 text-red-800;
+  }
+  .cc-badge-info {
+    @apply cc-badge bg-blue-100 text-blue-800;
+  }
+  .cc-badge-neutral {
+    @apply cc-badge bg-gray-100 text-gray-700;
+  }
+
+  /* Data Tables */
+  .cc-table {
+    @apply w-full text-sm text-left;
+  }
+  .cc-table thead {
+    @apply bg-gray-50 border-b border-gray-200;
+  }
+  .cc-table th {
+    @apply px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider;
+  }
+  .cc-table td {
+    @apply px-4 py-3.5 text-gray-700;
+  }
+  .cc-table tbody tr {
+    @apply border-b border-gray-100 hover:bg-gray-50/50 transition-colors;
+  }
+
+  /* Stat Cards */
+  .cc-stat {
+    @apply bg-white rounded-xl border border-gray-200 p-5 shadow-sm;
+  }
+  .cc-stat-label {
+    @apply text-sm font-medium text-gray-500;
+  }
+  .cc-stat-value {
+    @apply text-2xl font-bold mt-1;
+  }
+
+  /* Empty State */
+  .cc-empty-state {
+    @apply text-center py-12 text-gray-400;
+  }
+
+  /* Loading */
+  .cc-spinner {
+    @apply animate-spin h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full;
+  }
+}
+
+/* ============================================
+   UTILITY OVERRIDES
+   ============================================ */
+/* Better scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--cc-primary);
+  outline-offset: 2px;
+}
+
+/* Print */
+@media print {
+  .no-print { display: none !important; }
 }

@@ -25,6 +25,7 @@ export const routes: Routes = [
       { path: 'documents', loadComponent: () => import('./features/documents/pages/documents.component').then(m => m.DocumentsComponent) },
       { path: 'reports', loadComponent: () => import('./features/reports/pages/operational-dashboard.component').then(m => m.OperationalDashboardComponent) },
       { path: 'admin', loadComponent: () => import('./features/admin/pages/user-management.component').then(m => m.UserManagementComponent) },
+      { path: 'admin/gp-practices', loadComponent: () => import('./features/admin/pages/gp-practices.component').then(m => m.GPPracticesComponent) },
       { path: 'integration', loadComponent: () => import('./features/reports/pages/operational-dashboard.component').then(m => m.OperationalDashboardComponent) },
     ]
   },

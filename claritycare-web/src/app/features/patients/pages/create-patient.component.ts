@@ -192,28 +192,28 @@ interface DuplicateCandidate {
         <!-- GP Details -->
         <div class="card bg-base-100 shadow-lg mb-6">
           <div class="card-body">
-            <h2 class="card-title text-xl">GP Details</h2>
+            <h2 class="card-title text-xl">GP Practice</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div class="form-control">
-                <label class="label"><span class="label-text text-base">GP Name</span></label>
-                <input type="text" class="input input-bordered" [(ngModel)]="gpDetails.gpName" name="gpName"
-                  placeholder="Dr. Name" aria-label="GP name" />
+              <div class="form-control md:col-span-2">
+                <label class="label"><span class="label-text text-base">Select GP Practice</span></label>
+                <select class="select select-bordered text-base" [(ngModel)]="selectedGPPracticeId" name="gpPractice" (change)="onGPSelected()" aria-label="Select GP Practice">
+                  <option value="">-- Select a GP Practice --</option>
+                  @for (gp of gpPracticesList(); track gp.gpPracticeId) {
+                    <option [value]="gp.gpPracticeId">{{ gp.practiceName }} — {{ gp.leadGPName || 'No lead GP' }} ({{ gp.postcode }})</option>
+                  }
+                </select>
               </div>
-              <div class="form-control">
-                <label class="label"><span class="label-text text-base">Practice Name</span></label>
-                <input type="text" class="input input-bordered" [(ngModel)]="gpDetails.practiceName" name="gpPractice"
-                  placeholder="Practice name" aria-label="GP practice name" />
-              </div>
-              <div class="form-control">
-                <label class="label"><span class="label-text text-base">Practice Address</span></label>
-                <input type="text" class="input input-bordered" [(ngModel)]="gpDetails.practiceAddress" name="gpAddress"
-                  placeholder="Full address" aria-label="Practice address" />
-              </div>
-              <div class="form-control">
-                <label class="label"><span class="label-text text-base">Practice Phone</span></label>
-                <input type="tel" class="input input-bordered" [(ngModel)]="gpDetails.phoneNumber" name="gpPhone"
-                  placeholder="Practice phone number" aria-label="Practice phone" />
-              </div>
+              @if (selectedGPPractice()) {
+                <div class="md:col-span-2 bg-base-200 rounded-lg p-4">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div><span class="font-medium text-gray-500">Practice:</span><br/>{{ selectedGPPractice()!.practiceName }}</div>
+                    <div><span class="font-medium text-gray-500">Lead GP:</span><br/>{{ selectedGPPractice()!.leadGPName || '—' }}</div>
+                    <div><span class="font-medium text-gray-500">Phone:</span><br/>{{ selectedGPPractice()!.phoneNumber || '—' }}</div>
+                    <div><span class="font-medium text-gray-500">Address:</span><br/>{{ selectedGPPractice()!.addressLine1 || '' }} {{ selectedGPPractice()!.town || '' }} {{ selectedGPPractice()!.postcode || '' }}</div>
+                    <div><span class="font-medium text-gray-500">Email:</span><br/>{{ selectedGPPractice()!.email || '—' }}</div>
+                  </div>
+                </div>
+              }
             </div>
           </div>
         </div>
@@ -302,6 +302,9 @@ export class CreatePatientComponent {
   address = { line1: '', line2: '', city: '', county: '', postcode: '', country: 'United Kingdom' };
   emergencyContact = { name: '', relationship: '', phoneNumber: '' };
   gpDetails = { gpName: '', practiceName: '', practiceAddress: '', phoneNumber: '' };
+  selectedGPPracticeId = '';
+  gpPracticesList = signal<any[]>([]);
+  selectedGPPractice = signal<any>(null);
   newAllergy = { allergen: '', reaction: '', severity: 'Mild' };
   allergies = signal<{ allergen: string; reaction: string; severity: string }[]>([]);
 
@@ -310,6 +313,21 @@ export class CreatePatientComponent {
       this.allergies.set([...this.allergies(), { ...this.newAllergy }]);
       this.newAllergy = { allergen: '', reaction: '', severity: 'Mild' };
     }
+  }
+
+  onGPSelected() {
+    const gp = this.gpPracticesList().find((g: any) => g.gpPracticeId === this.selectedGPPracticeId);
+    this.selectedGPPractice.set(gp || null);
+    if (gp) {
+      this.gpDetails = { gpName: gp.leadGPName || '', practiceName: gp.practiceName, practiceAddress: `${gp.addressLine1 || ''} ${gp.town || ''} ${gp.postcode || ''}`.trim(), phoneNumber: gp.phoneNumber || '' };
+    }
+  }
+
+  constructor() {
+    this.http.get<{ data: any[] }>('/api/gp-practices').subscribe({
+      next: (res) => this.gpPracticesList.set(res.data),
+      error: () => {}
+    });
   }
 
   removeAllergy(index: number) {

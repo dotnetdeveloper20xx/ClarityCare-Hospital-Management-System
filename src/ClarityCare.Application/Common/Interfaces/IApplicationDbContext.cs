@@ -71,6 +71,7 @@ public interface IApplicationDbContext
     DbSet<AnalyticsSnapshot> AnalyticsSnapshots { get; }
     DbSet<AIInteraction> AIInteractions { get; }
     DbSet<Tenant> Tenants { get; }
+    DbSet<GPPractice> GPPractices { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

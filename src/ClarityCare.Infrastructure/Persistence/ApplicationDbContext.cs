@@ -74,6 +74,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<AnalyticsSnapshot> AnalyticsSnapshots => Set<AnalyticsSnapshot>();
     public DbSet<AIInteraction> AIInteractions => Set<AIInteraction>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<GPPractice> GPPractices => Set<GPPractice>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

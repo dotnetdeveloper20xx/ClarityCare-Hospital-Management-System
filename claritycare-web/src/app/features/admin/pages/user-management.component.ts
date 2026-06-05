@@ -2,6 +2,7 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@a
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
+import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 
 interface UserListItem {
   userId: string;
@@ -23,7 +24,7 @@ interface Role {
 @Component({
   selector: 'app-user-management',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, PaginationComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
@@ -132,6 +133,9 @@ interface Role {
             </div>
           }
         </div>
+        <div class="px-4 pb-4">
+          <app-pagination [page]="currentPage" [pageSize]="pageSize" [totalCount]="totalUserCount()" (pageChange)="loadUsers($event)" />
+        </div>
       </div>
 
       <!-- Create/Edit User Modal -->
@@ -206,6 +210,9 @@ export class UserManagementComponent {
   users = signal<UserListItem[]>([]);
   filteredUsers = signal<UserListItem[]>([]);
   availableRoles = signal<Role[]>([]);
+  currentPage = 1;
+  pageSize = 5;
+  totalUserCount = signal(0);
 
   searchName = '';
   searchEmail = '';
@@ -219,12 +226,16 @@ export class UserManagementComponent {
     this.loadRoles();
   }
 
-  loadUsers() {
+  loadUsers(page: number = 1) {
+    this.currentPage = page;
     this.isLoading.set(true);
-    this.http.get<{ data: UserListItem[] }>('/api/admin/users').subscribe({
+    this.http.get<{ data: UserListItem[]; totalCount?: number }>('/api/admin/users', {
+      params: { page: page.toString(), pageSize: this.pageSize.toString() }
+    }).subscribe({
       next: (res) => {
         this.users.set(res.data);
-        this.filterUsers();
+        this.filteredUsers.set(res.data);
+        this.totalUserCount.set(res.totalCount || res.data.length);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)

@@ -155,6 +155,11 @@ public static class DatabaseSeeder
         // === PHASE 12: Medication Catalog ===
         var medications = GetMedicationCatalog();
         context.MedicationCatalogs.AddRange(medications);
+
+        // === PHASE 13: GP Practices ===
+        var gpPractices = GetGPPractices();
+        context.GPPractices.AddRange(gpPractices);
+
         await context.SaveChangesAsync();
     }
 
@@ -597,6 +602,22 @@ public static class DatabaseSeeder
             new() { MedicationId = Guid.NewGuid(), Name = "Enoxaparin", Strength = "40mg", Route = "Subcutaneous", IsActive = true },
             new() { MedicationId = Guid.NewGuid(), Name = "Co-codamol", Strength = "30/500mg", Route = "Oral", IsActive = true },
             new() { MedicationId = Guid.NewGuid(), Name = "Amlodipine", Strength = "5mg", Route = "Oral", IsActive = true },
+        };
+    }
+
+    // ============ GP PRACTICES ============
+    private static List<GPPractice> GetGPPractices()
+    {
+        return new List<GPPractice>
+        {
+            new() { GPPracticeId = Guid.NewGuid(), PracticeCode = "GP001", PracticeName = "Riverside Medical Centre", LeadGPName = "Dr. Helen Carter", PhoneNumber = "020 7123 4001", Email = "admin@riverside-mc.nhs.uk", AddressLine1 = "45 River Lane", Town = "London", Postcode = "SE1 2AB", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { GPPracticeId = Guid.NewGuid(), PracticeCode = "GP002", PracticeName = "The Oak Surgery", LeadGPName = "Dr. Michael Green", PhoneNumber = "020 7123 4002", Email = "reception@oaksurgery.nhs.uk", AddressLine1 = "12 Oak Avenue", Town = "London", Postcode = "N1 3CD", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { GPPracticeId = Guid.NewGuid(), PracticeCode = "GP003", PracticeName = "Highgate Health Centre", LeadGPName = "Dr. Priya Sharma", PhoneNumber = "020 7123 4003", Email = "info@highgate-hc.nhs.uk", AddressLine1 = "88 High Street", Town = "London", Postcode = "N6 5EF", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { GPPracticeId = Guid.NewGuid(), PracticeCode = "GP004", PracticeName = "Elm Park Practice", LeadGPName = "Dr. James Wilson", PhoneNumber = "020 7123 4004", Email = "admin@elmpark.nhs.uk", AddressLine1 = "3 Elm Park Road", Town = "London", Postcode = "SW3 6GH", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { GPPracticeId = Guid.NewGuid(), PracticeCode = "GP005", PracticeName = "Victoria Park Surgery", LeadGPName = "Dr. Fatima Al-Rashid", PhoneNumber = "020 7123 4005", Email = "enquiries@vicpark.nhs.uk", AddressLine1 = "156 Victoria Park Road", Town = "London", Postcode = "E9 7JK", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { GPPracticeId = Guid.NewGuid(), PracticeCode = "GP006", PracticeName = "Meadow Lane Medical Group", LeadGPName = "Dr. Robert Chang", PhoneNumber = "020 7123 4006", Email = "contact@meadowlane.nhs.uk", AddressLine1 = "22 Meadow Lane", Town = "London", Postcode = "W4 2LM", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { GPPracticeId = Guid.NewGuid(), PracticeCode = "GP007", PracticeName = "St. Mary's Family Practice", LeadGPName = "Dr. Sarah O'Connor", PhoneNumber = "020 7123 4007", Email = "reception@stmarys-fp.nhs.uk", AddressLine1 = "1 Church Street", Town = "London", Postcode = "EC2 4NP", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { GPPracticeId = Guid.NewGuid(), PracticeCode = "GP008", PracticeName = "Greenfield Surgery", LeadGPName = "Dr. Ahmed Hassan", PhoneNumber = "020 7123 4008", Email = "admin@greenfield.nhs.uk", AddressLine1 = "67 Green Lane", Town = "London", Postcode = "NW3 8QR", IsActive = false, CreatedAt = DateTime.UtcNow },
         };
     }
 

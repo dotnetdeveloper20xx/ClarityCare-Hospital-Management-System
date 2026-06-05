@@ -615,3 +615,21 @@ public class RoomConfiguration : IEntityTypeConfiguration<Room>
         builder.HasOne(e => e.Department).WithMany(d => d.Rooms).HasForeignKey(e => e.DepartmentId).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public class GPPracticeConfiguration : IEntityTypeConfiguration<GPPractice>
+{
+    public void Configure(EntityTypeBuilder<GPPractice> builder)
+    {
+        builder.HasKey(e => e.GPPracticeId);
+        builder.Property(e => e.PracticeCode).HasMaxLength(20).IsRequired();
+        builder.HasIndex(e => e.PracticeCode).IsUnique();
+        builder.Property(e => e.PracticeName).HasMaxLength(200).IsRequired();
+        builder.Property(e => e.LeadGPName).HasMaxLength(200);
+        builder.Property(e => e.PhoneNumber).HasMaxLength(30);
+        builder.Property(e => e.Email).HasMaxLength(256);
+        builder.Property(e => e.AddressLine1).HasMaxLength(200);
+        builder.Property(e => e.AddressLine2).HasMaxLength(200);
+        builder.Property(e => e.Town).HasMaxLength(100);
+        builder.Property(e => e.Postcode).HasMaxLength(10);
+    }
+}
