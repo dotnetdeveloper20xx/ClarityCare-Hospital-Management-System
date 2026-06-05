@@ -183,8 +183,9 @@ export class DoctorDashboardComponent {
   loadDashboard() {
     this.isLoading.set(true);
     const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
     this.http.get<any>('/api/appointments/search', {
-      params: { fromDate: today, toDate: today, pageSize: '20' }
+      params: { fromDate: today, toDate: tomorrow, pageSize: '20' }
     }).subscribe({
       next: (res) => {
         const appts = res.data || [];
@@ -217,11 +218,16 @@ export class DoctorDashboardComponent {
   }
 
   startConsultation(appointmentId: string, patientId: string) {
-    this.http.post<{ data: { consultationId: string } }>('/api/consultations/start', { appointmentId, patientId }).subscribe({
+    this.http.post<any>('/api/consultations/start', { appointmentId, patientId }).subscribe({
       next: (res) => {
-        this.router.navigate(['/clinical/consultation', res.data.consultationId]);
+        const consultationId = res.consultationId || res.data?.consultationId;
+        if (consultationId) {
+          this.router.navigate(['/clinical/consultation', consultationId]);
+        }
       },
-      error: () => {}
+      error: (err) => {
+        alert(err.error?.detail || err.error?.title || 'Failed to start consultation. It may already exist for this appointment.');
+      }
     });
   }
 

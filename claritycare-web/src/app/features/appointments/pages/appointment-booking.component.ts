@@ -11,9 +11,16 @@ interface Department {
 
 interface Clinician {
   clinicianId: string;
-  firstName: string;
-  lastName: string;
-  specialisation: string;
+  fullName: string;
+  specialism: string;
+  jobTitle: string;
+}
+
+interface AppointmentTypeOption {
+  appointmentTypeId: string;
+  name: string;
+  defaultDurationMinutes: number;
+  description: string;
 }
 
 interface TimeSlot {
@@ -87,9 +94,9 @@ interface TimeSlot {
                     class="btn btn-outline btn-lg h-auto py-4 flex-col items-start text-left"
                     [class.btn-primary]="selectedClinician()?.clinicianId === clinician.clinicianId"
                     (click)="selectClinician(clinician)"
-                    [attr.aria-label]="'Select clinician: Dr. ' + clinician.lastName">
-                    <span class="text-lg font-semibold">Dr. {{ clinician.firstName }} {{ clinician.lastName }}</span>
-                    <span class="text-sm opacity-70">{{ clinician.specialisation }}</span>
+                    [attr.aria-label]="'Select clinician: ' + clinician.fullName">
+                    <span class="text-lg font-semibold">{{ clinician.fullName }}</span>
+                    <span class="text-sm opacity-70">{{ clinician.specialism }}</span>
                   </button>
                 }
               </div>
@@ -131,10 +138,9 @@ interface TimeSlot {
                       class="btn"
                       [class.btn-primary]="selectedSlot()?.startTime === slot.startTime"
                       [class.btn-outline]="selectedSlot()?.startTime !== slot.startTime"
-                      [disabled]="!slot.available"
                       (click)="selectSlot(slot)"
-                      [attr.aria-label]="'Time slot: ' + slot.startTime + ' to ' + slot.endTime">
-                      {{ slot.startTime }} - {{ slot.endTime }}
+                      [attr.aria-label]="'Time slot: ' + formatTime(slot.startTime) + ' to ' + formatTime(slot.endTime)">
+                      {{ formatTime(slot.startTime) }} - {{ formatTime(slot.endTime) }}
                     </button>
                   }
                 </div>
@@ -155,37 +161,51 @@ interface TimeSlot {
       @if (currentStep() === 4) {
         <div class="card bg-base-100 shadow-lg">
           <div class="card-body">
-            <h2 class="card-title text-xl">Patient Details</h2>
+            <h2 class="card-title text-xl">Patient & Appointment Details</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div class="form-control">
-                <label class="label"><span class="label-text text-lg">Hospital Number</span></label>
-                <input type="text" class="input input-bordered input-lg" [(ngModel)]="patientHospitalNumber"
-                  placeholder="e.g. CC-000001" aria-label="Patient hospital number" />
+                <label class="label"><span class="label-text text-lg">Search Patient *</span></label>
+                <input type="text" class="input input-bordered input-lg" [(ngModel)]="patientSearchTerm"
+                  placeholder="Type patient name..." (input)="searchPatients()" aria-label="Search patient by name" />
+                @if (patientSearchResults().length > 0 && !resolvedPatientId) {
+                  <div class="bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
+                    @for (p of patientSearchResults(); track p.patientId) {
+                      <button class="w-full text-left px-4 py-2 hover:bg-indigo-50 border-b border-gray-100 last:border-0"
+                        (click)="selectPatient(p)">
+                        <span class="font-medium">{{ p.firstName }} {{ p.lastName }}</span>
+                        <span class="text-sm text-gray-500 ml-2">{{ p.hospitalNumber }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+                @if (resolvedPatientId) {
+                  <div class="mt-2 flex items-center gap-2">
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">✓ {{ patientName }} ({{ patientHospitalNumber }})</span>
+                    <button class="text-xs text-red-500 underline" (click)="clearPatient()">Change</button>
+                  </div>
+                }
+                @if (patientNotFound()) {
+                  <p class="text-sm text-red-500 mt-1">No patient found. Try a different search term.</p>
+                }
               </div>
               <div class="form-control">
-                <label class="label"><span class="label-text text-lg">Patient Name</span></label>
-                <input type="text" class="input input-bordered input-lg" [(ngModel)]="patientName"
-                  placeholder="Full name" aria-label="Patient full name" />
+                <label class="label"><span class="label-text text-lg">Appointment Type *</span></label>
+                <select class="select select-bordered select-lg" [(ngModel)]="selectedAppointmentTypeId" aria-label="Appointment type">
+                  <option value="">Select type...</option>
+                  @for (type of appointmentTypes(); track type.appointmentTypeId) {
+                    <option [value]="type.appointmentTypeId">{{ type.name }} ({{ type.defaultDurationMinutes }} min)</option>
+                  }
+                </select>
               </div>
-              <div class="form-control">
-                <label class="label"><span class="label-text text-lg">Phone Number</span></label>
-                <input type="tel" class="input input-bordered input-lg" [(ngModel)]="patientPhone"
-                  placeholder="Contact number" aria-label="Patient phone number" />
-              </div>
-              <div class="form-control">
-                <label class="label"><span class="label-text text-lg">Reason for Visit</span></label>
+              <div class="form-control md:col-span-2">
+                <label class="label"><span class="label-text text-lg">Reason for Visit *</span></label>
                 <input type="text" class="input input-bordered input-lg" [(ngModel)]="reasonForVisit"
-                  placeholder="Brief reason" aria-label="Reason for visit" />
+                  placeholder="e.g. Chest pain review, Blood pressure follow-up" aria-label="Reason for visit" />
               </div>
-            </div>
-            <div class="form-control mt-4">
-              <label class="label"><span class="label-text text-lg">Additional Notes</span></label>
-              <textarea class="textarea textarea-bordered text-base" rows="3" [(ngModel)]="additionalNotes"
-                placeholder="Any additional information..." aria-label="Additional notes"></textarea>
             </div>
             <div class="card-actions justify-between mt-6">
               <button class="btn btn-ghost btn-lg" (click)="prevStep()" aria-label="Previous step">Back</button>
-              <button class="btn btn-primary btn-lg" [disabled]="!patientHospitalNumber" (click)="nextStep()" aria-label="Next step">Next</button>
+              <button class="btn btn-primary btn-lg" [disabled]="!resolvedPatientId || !selectedAppointmentTypeId || !reasonForVisit" (click)="nextStep()" aria-label="Next step">Next</button>
             </div>
           </div>
         </div>
@@ -204,7 +224,7 @@ interface TimeSlot {
                 </div>
                 <div>
                   <span class="font-semibold">Clinician:</span>
-                  <span class="ml-2">Dr. {{ selectedClinician()?.firstName }} {{ selectedClinician()?.lastName }}</span>
+                  <span class="ml-2">{{ selectedClinician()?.fullName }}</span>
                 </div>
                 <div>
                   <span class="font-semibold">Date:</span>
@@ -212,7 +232,7 @@ interface TimeSlot {
                 </div>
                 <div>
                   <span class="font-semibold">Time:</span>
-                  <span class="ml-2">{{ selectedSlot()?.startTime }} - {{ selectedSlot()?.endTime }}</span>
+                  <span class="ml-2">{{ formatTime(selectedSlot()?.startTime || '') }} - {{ formatTime(selectedSlot()?.endTime || '') }}</span>
                 </div>
                 <div>
                   <span class="font-semibold">Patient:</span>
@@ -271,11 +291,17 @@ export class AppointmentBookingComponent {
   selectedSlot = signal<TimeSlot | null>(null);
 
   // Step 4
+  patientSearchTerm = '';
   patientHospitalNumber = '';
   patientName = '';
   patientPhone = '';
   reasonForVisit = '';
   additionalNotes = '';
+  resolvedPatientId = '';
+  selectedAppointmentTypeId = '';
+  appointmentTypes = signal<AppointmentTypeOption[]>([]);
+  patientSearchResults = signal<any[]>([]);
+  patientNotFound = signal(false);
 
   // Step 5
   isSubmitting = signal(false);
@@ -306,9 +332,7 @@ export class AppointmentBookingComponent {
   }
 
   selectSlot(slot: TimeSlot) {
-    if (slot.available) {
-      this.selectedSlot.set(slot);
-    }
+    this.selectedSlot.set(slot);
   }
 
   loadClinicians() {
@@ -321,6 +345,11 @@ export class AppointmentBookingComponent {
         this.isLoadingClinicians.set(false);
       },
       error: () => this.isLoadingClinicians.set(false)
+    });
+    // Also load appointment types for this department
+    this.http.get<{ data: AppointmentTypeOption[] }>(`/api/departments/${deptId}/appointment-types`).subscribe({
+      next: (res) => this.appointmentTypes.set(res.data),
+      error: () => {}
     });
   }
 
@@ -349,30 +378,70 @@ export class AppointmentBookingComponent {
     this.currentStep.set(this.currentStep() - 1);
   }
 
+  searchPatients() {
+    this.patientNotFound.set(false);
+    if (this.patientSearchTerm.length < 2) {
+      this.patientSearchResults.set([]);
+      return;
+    }
+    this.http.get<any>('/api/patients/search', { params: { name: this.patientSearchTerm, pageSize: '5' } }).subscribe({
+      next: (res) => {
+        this.patientSearchResults.set(res.data || []);
+        if (res.data?.length === 0) this.patientNotFound.set(true);
+      },
+      error: () => this.patientSearchResults.set([])
+    });
+  }
+
+  selectPatient(patient: any) {
+    this.resolvedPatientId = patient.patientId;
+    this.patientName = patient.firstName + ' ' + patient.lastName;
+    this.patientHospitalNumber = patient.hospitalNumber;
+    this.patientSearchResults.set([]);
+    this.patientSearchTerm = '';
+  }
+
+  clearPatient() {
+    this.resolvedPatientId = '';
+    this.patientName = '';
+    this.patientHospitalNumber = '';
+    this.patientSearchTerm = '';
+  }
+
+  formatTime(isoString: string): string {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
   confirmBooking() {
     this.isSubmitting.set(true);
     this.bookingError.set(null);
+
+    const slot = this.selectedSlot();
     const payload = {
-      departmentId: this.selectedDepartment()?.departmentId,
+      patientId: this.resolvedPatientId,
       clinicianId: this.selectedClinician()?.clinicianId,
-      date: this.selectedDate,
-      startTime: this.selectedSlot()?.startTime,
-      endTime: this.selectedSlot()?.endTime,
-      patientHospitalNumber: this.patientHospitalNumber,
-      patientName: this.patientName,
-      patientPhone: this.patientPhone,
-      reasonForVisit: this.reasonForVisit,
-      notes: this.additionalNotes
+      departmentId: this.selectedDepartment()?.departmentId,
+      roomId: null,
+      appointmentTypeId: this.selectedAppointmentTypeId,
+      startTime: slot?.startTime,
+      endTime: slot?.endTime,
+      priority: 0,
+      reasonForVisit: this.reasonForVisit
     };
+
     this.http.post('/api/appointments', payload).subscribe({
       next: () => {
         this.isSubmitting.set(false);
         this.bookingSuccess.set(true);
+        setTimeout(() => this.router.navigate(['/appointments']), 2000);
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        this.bookingError.set(err.error?.detail || 'Failed to book appointment. Please try again.');
+        this.bookingError.set(err.error?.detail || err.error?.title || 'Failed to book appointment. Please try again.');
       }
     });
   }
 }
+
+

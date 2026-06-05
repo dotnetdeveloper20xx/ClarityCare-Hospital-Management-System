@@ -1,110 +1,41 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-
-interface PatientProfile {
-  patientId: string;
-  hospitalNumber: string;
-  nhsNumber: string | null;
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
-  dateOfBirth: string;
-  gender: string;
-  email: string | null;
-  phoneNumber: string | null;
-  status: string;
-  createdAt: string;
-  maritalStatus: string | null;
-}
-
-interface PatientAddress {
-  addressId: string;
-  line1: string;
-  line2: string | null;
-  city: string;
-  county: string | null;
-  postcode: string;
-  country: string;
-  addressType: string;
-  isPrimary: boolean;
-}
-
-interface EmergencyContact {
-  contactId: string;
-  name: string;
-  relationship: string;
-  phoneNumber: string;
-  isPrimary: boolean;
-}
-
-interface PatientAllergy {
-  allergyId: string;
-  allergen: string;
-  reaction: string;
-  severity: string;
-  recordedAt: string;
-}
-
-interface PatientAppointment {
-  appointmentId: string;
-  scheduledDate: string;
-  scheduledTime: string;
-  clinicianName: string;
-  departmentName: string;
-  status: string;
-  type: string;
-}
-
-interface AuditEntry {
-  auditId: string;
-  action: string;
-  entityType: string;
-  performedBy: string;
-  performedAt: string;
-  details: string;
-}
 
 @Component({
   selector: 'app-patient-profile',
   standalone: true,
-  imports: [DatePipe],
+  imports: [FormsModule, DatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="space-y-6">
       <!-- Patient Banner -->
       @if (patient()) {
-        <div class="bg-primary text-primary-content rounded-box p-6 shadow-lg" aria-label="Patient banner">
+        <div class="bg-indigo-700 text-white rounded-xl p-6 shadow-lg">
           <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 class="text-3xl font-bold">{{ patient()!.firstName }} {{ patient()!.middleName || '' }} {{ patient()!.lastName }}</h1>
-              <div class="flex flex-wrap gap-4 mt-2 text-base opacity-90">
+              <h1 class="text-3xl font-bold">{{ patient()!.firstName }} {{ patient()!.lastName }}</h1>
+              <div class="flex flex-wrap gap-4 mt-2 text-sm opacity-90">
                 <span>Hospital No: <strong>{{ patient()!.hospitalNumber }}</strong></span>
-                @if (patient()!.nhsNumber) {
-                  <span>NHS: <strong>{{ patient()!.nhsNumber }}</strong></span>
-                }
+                <span>NHS: <strong>{{ patient()!.nhsNumber || 'N/A' }}</strong></span>
                 <span>DOB: <strong>{{ patient()!.dateOfBirth | date:'dd/MM/yyyy' }}</strong></span>
                 <span>Gender: <strong>{{ patient()!.gender }}</strong></span>
               </div>
-              <!-- Allergy badges on banner -->
               @if (allergies().length > 0) {
                 <div class="flex flex-wrap gap-2 mt-3">
-                  <span class="text-base font-semibold">⚠ Allergies:</span>
-                  @for (allergy of allergies(); track allergy.allergyId) {
-                    <span class="badge badge-error badge-lg">{{ allergy.allergen }} ({{ allergy.severity }})</span>
+                  <span class="font-semibold">⚠ Allergies:</span>
+                  @for (a of allergies(); track $index) {
+                    <span class="bg-red-500 text-white px-2 py-0.5 rounded text-xs font-bold">{{ a.allergyName }} ({{ a.severity }})</span>
                   }
                 </div>
-              } @else {
-                <div class="mt-3 text-base opacity-80">No known allergies (NKA)</div>
               }
             </div>
-            <div class="flex items-center gap-3">
-              <span class="badge badge-lg" [class]="getStatusBadgeClass(patient()!.status)">{{ patient()!.status }}</span>
+            <div class="flex gap-2">
+              <span class="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">{{ patient()!.status }}</span>
               @if (patient()!.status === 'Active') {
-                <button class="btn btn-warning btn-sm" (click)="archivePatient()" aria-label="Archive patient">Archive</button>
-              } @else if (patient()!.status === 'Archived') {
-                <button class="btn btn-success btn-sm" (click)="reactivatePatient()" aria-label="Reactivate patient">Reactivate</button>
+                <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg text-sm font-medium" (click)="archivePatient()">Archive</button>
               }
             </div>
           </div>
@@ -112,252 +43,237 @@ interface AuditEntry {
       }
 
       @if (isLoading()) {
-        <div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg"></span></div>
+        <div class="flex justify-center py-12"><span class="text-lg text-gray-400">Loading...</span></div>
       } @else if (patient()) {
         <!-- Tabs -->
-        <div role="tablist" class="tabs tabs-lifted tabs-lg" aria-label="Patient profile tabs">
-          <button role="tab" class="tab text-base" [class.tab-active]="activeTab() === 'demographics'" (click)="activeTab.set('demographics')">
-            Demographics
-          </button>
-          <button role="tab" class="tab text-base" [class.tab-active]="activeTab() === 'addresses'" (click)="activeTab.set('addresses')">
-            Addresses
-          </button>
-          <button role="tab" class="tab text-base" [class.tab-active]="activeTab() === 'contacts'" (click)="activeTab.set('contacts')">
-            Emergency Contacts
-          </button>
-          <button role="tab" class="tab text-base" [class.tab-active]="activeTab() === 'allergies'" (click)="activeTab.set('allergies')">
-            Allergies
-          </button>
-          <button role="tab" class="tab text-base" [class.tab-active]="activeTab() === 'appointments'" (click)="activeTab.set('appointments')">
-            Appointments
-          </button>
-          <button role="tab" class="tab text-base" [class.tab-active]="activeTab() === 'audit'" (click)="activeTab.set('audit')">
-            Audit Trail
-          </button>
+        <div class="flex border-b border-gray-200 gap-1 overflow-x-auto">
+          @for (tab of tabs; track tab.id) {
+            <button class="px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition"
+              [class]="activeTab() === tab.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              (click)="activeTab.set(tab.id)">
+              {{ tab.label }}
+            </button>
+          }
         </div>
 
-        <!-- Demographics Tab -->
-        @if (activeTab() === 'demographics') {
-          <div class="card bg-base-100 shadow-lg">
-            <div class="card-body">
-              <h2 class="card-title text-xl">Personal Information</h2>
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-                <div>
-                  <div class="text-sm text-base-content/60">First Name</div>
-                  <div class="text-lg font-medium">{{ patient()!.firstName }}</div>
+        <!-- ADDRESSES TAB -->
+        @if (activeTab() === 'addresses') {
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-900">Addresses</h2>
+              <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                (click)="showAddressForm.set(true)">+ Add Address</button>
+            </div>
+            @if (showAddressForm()) {
+              <div class="border border-indigo-200 bg-indigo-50 rounded-lg p-4 mb-4">
+                <h3 class="font-medium text-gray-900 mb-3">New Address</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAddress.line1" placeholder="Address Line 1 *" />
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAddress.line2" placeholder="Address Line 2" />
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAddress.town" placeholder="Town/City *" />
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAddress.county" placeholder="County" />
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAddress.postcode" placeholder="Postcode *" />
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAddress.country" placeholder="Country" />
+                  <label class="flex items-center gap-2 text-sm"><input type="checkbox" [(ngModel)]="newAddress.isPrimary" class="checkbox checkbox-sm" /> Primary Address</label>
                 </div>
-                @if (patient()!.middleName) {
-                  <div>
-                    <div class="text-sm text-base-content/60">Middle Name</div>
-                    <div class="text-lg font-medium">{{ patient()!.middleName }}</div>
+                <div class="flex gap-2 mt-3">
+                  <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium" (click)="saveAddress()" [disabled]="isSaving()">Save</button>
+                  <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm" (click)="showAddressForm.set(false)">Cancel</button>
+                </div>
+              </div>
+            }
+            @if (addresses().length > 0) {
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                @for (addr of addresses(); track $index) {
+                  <div class="border rounded-lg p-4" [class.border-indigo-400]="addr.isPrimary">
+                    @if (addr.isPrimary) { <span class="text-xs font-bold text-indigo-600 uppercase">Primary</span> }
+                    <p class="font-medium">{{ addr.line1 }}</p>
+                    @if (addr.line2) { <p class="text-sm text-gray-600">{{ addr.line2 }}</p> }
+                    <p class="text-sm text-gray-600">{{ addr.town }}{{ addr.county ? ', ' + addr.county : '' }}</p>
+                    <p class="text-sm text-gray-600">{{ addr.postcode }}, {{ addr.country }}</p>
                   </div>
                 }
-                <div>
-                  <div class="text-sm text-base-content/60">Last Name</div>
-                  <div class="text-lg font-medium">{{ patient()!.lastName }}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-base-content/60">Date of Birth</div>
-                  <div class="text-lg font-medium">{{ patient()!.dateOfBirth | date:'dd MMMM yyyy' }}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-base-content/60">Gender</div>
-                  <div class="text-lg font-medium">{{ patient()!.gender }}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-base-content/60">Marital Status</div>
-                  <div class="text-lg font-medium">{{ patient()!.maritalStatus || 'Not specified' }}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-base-content/60">Email</div>
-                  <div class="text-lg font-medium">{{ patient()!.email || 'Not provided' }}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-base-content/60">Phone</div>
-                  <div class="text-lg font-medium">{{ patient()!.phoneNumber || 'Not provided' }}</div>
-                </div>
-                <div>
-                  <div class="text-sm text-base-content/60">Registered</div>
-                  <div class="text-lg font-medium">{{ patient()!.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
-                </div>
               </div>
-            </div>
+            } @else if (!showAddressForm()) {
+              <p class="text-gray-400 text-center py-6">No addresses recorded. Click "Add Address" to create one.</p>
+            }
           </div>
         }
 
-        <!-- Addresses Tab -->
-        @if (activeTab() === 'addresses') {
-          <div class="card bg-base-100 shadow-lg">
-            <div class="card-body">
-              <div class="flex justify-between items-center">
-                <h2 class="card-title text-xl">Addresses</h2>
-                <button class="btn btn-primary btn-sm" (click)="addAddress()" aria-label="Add new address">+ Add Address</button>
-              </div>
-              @if (addresses().length > 0) {
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  @for (addr of addresses(); track addr.addressId) {
-                    <div class="border rounded-lg p-4" [class.border-primary]="addr.isPrimary">
-                      @if (addr.isPrimary) {
-                        <span class="badge badge-primary badge-sm mb-2">Primary</span>
-                      }
-                      <span class="badge badge-outline badge-sm mb-2 ml-2">{{ addr.addressType }}</span>
-                      <div class="text-base">
-                        <p>{{ addr.line1 }}</p>
-                        @if (addr.line2) { <p>{{ addr.line2 }}</p> }
-                        <p>{{ addr.city }}{{ addr.county ? ', ' + addr.county : '' }}</p>
-                        <p>{{ addr.postcode }}</p>
-                        <p>{{ addr.country }}</p>
-                      </div>
-                    </div>
-                  }
-                </div>
-              } @else {
-                <p class="text-center py-6 text-base-content/60 text-lg mt-4">No addresses recorded.</p>
-              }
-            </div>
-          </div>
-        }
-
-        <!-- Emergency Contacts Tab -->
+        <!-- EMERGENCY CONTACTS TAB -->
         @if (activeTab() === 'contacts') {
-          <div class="card bg-base-100 shadow-lg">
-            <div class="card-body">
-              <div class="flex justify-between items-center">
-                <h2 class="card-title text-xl">Emergency Contacts</h2>
-                <button class="btn btn-primary btn-sm" (click)="addEmergencyContact()" aria-label="Add emergency contact">+ Add Contact</button>
-              </div>
-              @if (emergencyContacts().length > 0) {
-                <div class="overflow-x-auto mt-4">
-                  <table class="table table-lg" aria-label="Emergency contacts list">
-                    <thead>
-                      <tr class="text-base"><th>Name</th><th>Relationship</th><th>Phone</th><th>Primary</th></tr>
-                    </thead>
-                    <tbody>
-                      @for (contact of emergencyContacts(); track contact.contactId) {
-                        <tr class="text-base">
-                          <td class="font-semibold">{{ contact.name }}</td>
-                          <td>{{ contact.relationship }}</td>
-                          <td>{{ contact.phoneNumber }}</td>
-                          <td>
-                            @if (contact.isPrimary) {
-                              <span class="badge badge-success">Yes</span>
-                            } @else {
-                              <span class="badge badge-ghost">No</span>
-                            }
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              } @else {
-                <p class="text-center py-6 text-base-content/60 text-lg mt-4">No emergency contacts recorded.</p>
-              }
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-900">Emergency Contacts</h2>
+              <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                (click)="showContactForm.set(true)">+ Add Contact</button>
             </div>
+            @if (showContactForm()) {
+              <div class="border border-indigo-200 bg-indigo-50 rounded-lg p-4 mb-4">
+                <h3 class="font-medium text-gray-900 mb-3">New Emergency Contact</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newContact.fullName" placeholder="Full Name *" />
+                  <select class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newContact.relationship">
+                    <option value="">Relationship *</option>
+                    <option value="Spouse">Spouse</option>
+                    <option value="Partner">Partner</option>
+                    <option value="Parent">Parent</option>
+                    <option value="Child">Child</option>
+                    <option value="Sibling">Sibling</option>
+                    <option value="Friend">Friend</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newContact.phoneNumber" placeholder="Phone Number *" />
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newContact.email" placeholder="Email (optional)" />
+                  <label class="flex items-center gap-2 text-sm"><input type="checkbox" [(ngModel)]="newContact.isPrimary" class="checkbox checkbox-sm" /> Primary Contact</label>
+                </div>
+                <div class="flex gap-2 mt-3">
+                  <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium" (click)="saveContact()" [disabled]="isSaving()">Save</button>
+                  <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm" (click)="showContactForm.set(false)">Cancel</button>
+                </div>
+              </div>
+            }
+            @if (emergencyContacts().length > 0) {
+              <table class="w-full text-sm mt-2">
+                <thead class="bg-gray-50"><tr><th class="text-left px-4 py-2 font-medium">Name</th><th class="text-left px-4 py-2 font-medium">Relationship</th><th class="text-left px-4 py-2 font-medium">Phone</th><th class="text-left px-4 py-2 font-medium">Primary</th></tr></thead>
+                <tbody class="divide-y">
+                  @for (c of emergencyContacts(); track $index) {
+                    <tr><td class="px-4 py-2 font-medium">{{ c.fullName }}</td><td class="px-4 py-2">{{ c.relationship }}</td><td class="px-4 py-2">{{ c.phoneNumber }}</td><td class="px-4 py-2">{{ c.isPrimary ? '✓' : '' }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            } @else if (!showContactForm()) {
+              <p class="text-gray-400 text-center py-6">No emergency contacts. Click "Add Contact" to create one.</p>
+            }
           </div>
         }
 
-        <!-- Allergies Tab -->
+        <!-- ALLERGIES TAB -->
         @if (activeTab() === 'allergies') {
-          <div class="card bg-base-100 shadow-lg">
-            <div class="card-body">
-              <div class="flex justify-between items-center">
-                <h2 class="card-title text-xl">Allergies</h2>
-                <button class="btn btn-primary btn-sm" (click)="addAllergyRecord()" aria-label="Add allergy">+ Add Allergy</button>
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-900">Allergies</h2>
+              <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                (click)="showAllergyForm.set(true)">+ Add Allergy</button>
+            </div>
+            @if (showAllergyForm()) {
+              <div class="border border-red-200 bg-red-50 rounded-lg p-4 mb-4">
+                <h3 class="font-medium text-gray-900 mb-3">Record Allergy</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAllergy.allergyName" placeholder="Allergen *" />
+                  <input class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAllergy.reaction" placeholder="Reaction" />
+                  <select class="px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="newAllergy.severity">
+                    <option value="0">Mild</option>
+                    <option value="1">Moderate</option>
+                    <option value="2">Severe</option>
+                    <option value="3">Life-Threatening</option>
+                  </select>
+                </div>
+                <div class="flex gap-2 mt-3">
+                  <button class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium" (click)="saveAllergy()" [disabled]="isSaving()">Save Allergy</button>
+                  <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm" (click)="showAllergyForm.set(false)">Cancel</button>
+                </div>
               </div>
-              @if (allergies().length > 0) {
-                <div class="overflow-x-auto mt-4">
-                  <table class="table table-lg" aria-label="Patient allergies">
-                    <thead>
-                      <tr class="text-base"><th>Allergen</th><th>Reaction</th><th>Severity</th><th>Recorded</th></tr>
-                    </thead>
-                    <tbody>
-                      @for (allergy of allergies(); track allergy.allergyId) {
-                        <tr class="text-base">
-                          <td class="font-semibold">{{ allergy.allergen }}</td>
-                          <td>{{ allergy.reaction }}</td>
-                          <td>
-                            <span class="badge badge-lg" [class]="getSeverityClass(allergy.severity)">{{ allergy.severity }}</span>
-                          </td>
-                          <td>{{ allergy.recordedAt | date:'dd/MM/yyyy' }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
+            }
+            @if (allergies().length > 0) {
+              <table class="w-full text-sm mt-2">
+                <thead class="bg-gray-50"><tr><th class="text-left px-4 py-2 font-medium">Allergen</th><th class="text-left px-4 py-2 font-medium">Reaction</th><th class="text-left px-4 py-2 font-medium">Severity</th><th class="text-left px-4 py-2 font-medium">Recorded</th></tr></thead>
+                <tbody class="divide-y">
+                  @for (a of allergies(); track $index) {
+                    <tr>
+                      <td class="px-4 py-2 font-semibold">{{ a.allergyName }}</td>
+                      <td class="px-4 py-2">{{ a.reaction }}</td>
+                      <td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-xs font-bold" [class]="getSeverityClass(a.severity)">{{ a.severity }}</span></td>
+                      <td class="px-4 py-2">{{ a.recordedAt | date:'dd/MM/yyyy' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else if (!showAllergyForm()) {
+              <p class="text-green-600 font-medium text-center py-6">No Known Allergies (NKA)</p>
+            }
+          </div>
+        }
+
+        <!-- DEMOGRAPHICS TAB -->
+        @if (activeTab() === 'demographics') {
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-900">Contact Details</h2>
+              <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                (click)="showEditContact.set(!showEditContact())">{{ showEditContact() ? 'Cancel' : 'Edit' }}</button>
+            </div>
+            @if (showEditContact()) {
+              <div class="border border-indigo-200 bg-indigo-50 rounded-lg p-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div><label class="text-xs font-medium text-gray-600">Email</label><input class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="editEmail" /></div>
+                  <div><label class="text-xs font-medium text-gray-600">Phone</label><input class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" [(ngModel)]="editPhone" /></div>
                 </div>
-              } @else {
-                <div class="text-center py-6 mt-4">
-                  <p class="text-success text-lg font-semibold">No Known Allergies (NKA)</p>
-                </div>
-              }
+                <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium mt-3" (click)="saveContactDetails()" [disabled]="isSaving()">Save Changes</button>
+              </div>
+            }
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div><p class="text-xs text-gray-500">First Name</p><p class="text-base font-medium">{{ patient()!.firstName }}</p></div>
+              <div><p class="text-xs text-gray-500">Last Name</p><p class="text-base font-medium">{{ patient()!.lastName }}</p></div>
+              <div><p class="text-xs text-gray-500">Date of Birth</p><p class="text-base font-medium">{{ patient()!.dateOfBirth | date:'dd MMM yyyy' }}</p></div>
+              <div><p class="text-xs text-gray-500">Gender</p><p class="text-base font-medium">{{ patient()!.gender }}</p></div>
+              <div><p class="text-xs text-gray-500">Email</p><p class="text-base font-medium">{{ patient()!.email || '—' }}</p></div>
+              <div><p class="text-xs text-gray-500">Phone</p><p class="text-base font-medium">{{ patient()!.phoneNumber || '—' }}</p></div>
+              <div><p class="text-xs text-gray-500">Hospital Number</p><p class="text-base font-medium font-mono">{{ patient()!.hospitalNumber }}</p></div>
+              <div><p class="text-xs text-gray-500">NHS Number</p><p class="text-base font-medium">{{ patient()!.nhsNumber || '—' }}</p></div>
+              <div><p class="text-xs text-gray-500">Registered</p><p class="text-base font-medium">{{ patient()!.createdAt | date:'dd/MM/yyyy' }}</p></div>
             </div>
           </div>
         }
 
-        <!-- Appointments Tab -->
+        <!-- APPOINTMENTS TAB -->
         @if (activeTab() === 'appointments') {
-          <div class="card bg-base-100 shadow-lg">
-            <div class="card-body">
-              <h2 class="card-title text-xl">Appointment History</h2>
-              @if (appointments().length > 0) {
-                <div class="overflow-x-auto mt-4">
-                  <table class="table table-lg" aria-label="Patient appointments">
-                    <thead>
-                      <tr class="text-base"><th>Date</th><th>Time</th><th>Clinician</th><th>Department</th><th>Type</th><th>Status</th></tr>
-                    </thead>
-                    <tbody>
-                      @for (appt of appointments(); track appt.appointmentId) {
-                        <tr class="text-base">
-                          <td>{{ appt.scheduledDate | date:'dd/MM/yyyy' }}</td>
-                          <td>{{ appt.scheduledTime }}</td>
-                          <td>{{ appt.clinicianName }}</td>
-                          <td>{{ appt.departmentName }}</td>
-                          <td>{{ appt.type }}</td>
-                          <td>
-                            <span class="badge badge-lg" [class]="getAppointmentStatusClass(appt.status)">{{ appt.status }}</span>
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              } @else {
-                <p class="text-center py-6 text-base-content/60 text-lg mt-4">No appointments recorded.</p>
-              }
-            </div>
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Appointment History</h2>
+            @if (appointments().length > 0) {
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50"><tr><th class="text-left px-4 py-2">Date</th><th class="text-left px-4 py-2">Clinician</th><th class="text-left px-4 py-2">Department</th><th class="text-left px-4 py-2">Reason</th><th class="text-left px-4 py-2">Status</th></tr></thead>
+                <tbody class="divide-y">
+                  @for (appt of appointments(); track $index) {
+                    <tr><td class="px-4 py-2">{{ appt.startTime | date:'dd/MM/yyyy HH:mm' }}</td><td class="px-4 py-2">{{ appt.clinicianName }}</td><td class="px-4 py-2">{{ appt.departmentName }}</td><td class="px-4 py-2">{{ appt.reasonForVisit }}</td><td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-xs font-medium bg-gray-100">{{ appt.status }}</span></td></tr>
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <p class="text-gray-400 text-center py-6">No appointments found for this patient.</p>
+            }
           </div>
         }
 
-        <!-- Audit Trail Tab -->
+        <!-- AUDIT TAB -->
         @if (activeTab() === 'audit') {
-          <div class="card bg-base-100 shadow-lg">
-            <div class="card-body">
-              <h2 class="card-title text-xl">Audit Trail</h2>
-              @if (auditTrail().length > 0) {
-                <div class="overflow-x-auto mt-4">
-                  <table class="table table-lg" aria-label="Patient audit trail">
-                    <thead>
-                      <tr class="text-base"><th>Date/Time</th><th>Action</th><th>Entity</th><th>Performed By</th><th>Details</th></tr>
-                    </thead>
-                    <tbody>
-                      @for (entry of auditTrail(); track entry.auditId) {
-                        <tr class="text-base">
-                          <td>{{ entry.performedAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                          <td><span class="badge badge-outline">{{ entry.action }}</span></td>
-                          <td>{{ entry.entityType }}</td>
-                          <td>{{ entry.performedBy }}</td>
-                          <td class="max-w-xs truncate">{{ entry.details }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              } @else {
-                <p class="text-center py-6 text-base-content/60 text-lg mt-4">No audit entries found.</p>
-              }
-            </div>
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Audit Trail</h2>
+            @if (auditTrail().length > 0) {
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50"><tr><th class="text-left px-4 py-2">Date</th><th class="text-left px-4 py-2">Action</th><th class="text-left px-4 py-2">Entity</th><th class="text-left px-4 py-2">Changed By</th><th class="text-left px-4 py-2">Reason</th></tr></thead>
+                <tbody class="divide-y">
+                  @for (entry of auditTrail(); track $index) {
+                    <tr>
+                      <td class="px-4 py-2 whitespace-nowrap">{{ entry.changedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                      <td class="px-4 py-2"><span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs font-medium">{{ entry.action }}</span></td>
+                      <td class="px-4 py-2">{{ entry.entityName }}</td>
+                      <td class="px-4 py-2">{{ entry.changedBy }}</td>
+                      <td class="px-4 py-2 text-gray-500">{{ entry.reason || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <p class="text-gray-400 text-center py-6">No audit records found.</p>
+            }
           </div>
         }
+      }
+
+      <!-- Success/Error Toast -->
+      @if (successMsg()) {
+        <div class="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg z-50">{{ successMsg() }}</div>
       }
     </div>
   `
@@ -365,24 +281,44 @@ interface AuditEntry {
 export class PatientProfileComponent {
   private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
-  private router = inject(Router);
 
   patientId = '';
   isLoading = signal(false);
-  patient = signal<PatientProfile | null>(null);
-  addresses = signal<PatientAddress[]>([]);
-  emergencyContacts = signal<EmergencyContact[]>([]);
-  allergies = signal<PatientAllergy[]>([]);
-  appointments = signal<PatientAppointment[]>([]);
-  auditTrail = signal<AuditEntry[]>([]);
-  activeTab = signal<'demographics' | 'addresses' | 'contacts' | 'allergies' | 'appointments' | 'audit'>('demographics');
+  isSaving = signal(false);
+  successMsg = signal<string | null>(null);
+  patient = signal<any>(null);
+  addresses = signal<any[]>([]);
+  emergencyContacts = signal<any[]>([]);
+  allergies = signal<any[]>([]);
+  appointments = signal<any[]>([]);
+  auditTrail = signal<any[]>([]);
+  activeTab = signal('demographics');
+
+  tabs = [
+    { id: 'demographics', label: 'Demographics' },
+    { id: 'addresses', label: 'Addresses' },
+    { id: 'contacts', label: 'Emergency Contacts' },
+    { id: 'allergies', label: 'Allergies' },
+    { id: 'appointments', label: 'Appointments' },
+    { id: 'audit', label: 'Audit Trail' },
+  ];
+
+  // Forms
+  showAddressForm = signal(false);
+  showContactForm = signal(false);
+  showAllergyForm = signal(false);
+  showEditContact = signal(false);
+
+  newAddress = { line1: '', line2: '', town: '', county: '', postcode: '', country: 'United Kingdom', isPrimary: false };
+  newContact = { fullName: '', relationship: '', phoneNumber: '', email: '', isPrimary: false };
+  newAllergy = { allergyName: '', reaction: '', severity: '1' };
+  editEmail = '';
+  editPhone = '';
 
   constructor() {
     this.route.params.subscribe(params => {
       this.patientId = params['id'];
-      if (this.patientId) {
-        this.loadProfile();
-      }
+      if (this.patientId) this.loadProfile();
     });
   }
 
@@ -390,70 +326,110 @@ export class PatientProfileComponent {
     this.isLoading.set(true);
     this.http.get<{ data: any }>(`/api/patients/${this.patientId}/profile`).subscribe({
       next: (res) => {
-        this.patient.set(res.data);
-        this.addresses.set(res.data.addresses || []);
-        this.emergencyContacts.set(res.data.emergencyContacts || []);
-        this.allergies.set(res.data.allergies || []);
-        this.appointments.set(res.data.appointments || []);
-        this.auditTrail.set(res.data.auditTrail || []);
+        const d = res.data;
+        this.patient.set(d);
+        this.addresses.set(d.addresses || []);
+        this.emergencyContacts.set(d.emergencyContacts || []);
+        this.allergies.set(d.allergies || []);
+        this.editEmail = d.email || '';
+        this.editPhone = d.phoneNumber || '';
         this.isLoading.set(false);
+        // Load appointments separately
+        this.http.get<any>(`/api/appointments/search`, { params: { patientId: this.patientId, pageSize: '50' } }).subscribe({
+          next: (r) => this.appointments.set(r.data || []),
+          error: () => {}
+        });
+        // Load audit
+        this.http.get<any>(`/api/patients/${this.patientId}/audit-history`).subscribe({
+          next: (r) => this.auditTrail.set(r.data || []),
+          error: () => {}
+        });
       },
       error: () => this.isLoading.set(false)
     });
   }
 
-  getStatusBadgeClass(status: string): string {
-    switch (status) {
-      case 'Active': return 'badge-success';
-      case 'Archived': return 'badge-warning';
-      case 'Deceased': return 'badge-error';
-      default: return 'badge-ghost';
-    }
+  saveAddress() {
+    if (!this.newAddress.line1 || !this.newAddress.town || !this.newAddress.postcode) return;
+    this.isSaving.set(true);
+    this.http.post(`/api/patients/${this.patientId}/addresses`, this.newAddress).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.showAddressForm.set(false);
+        this.newAddress = { line1: '', line2: '', town: '', county: '', postcode: '', country: 'United Kingdom', isPrimary: false };
+        this.showSuccess('Address added successfully');
+        this.loadProfile();
+      },
+      error: () => this.isSaving.set(false)
+    });
+  }
+
+  saveContact() {
+    if (!this.newContact.fullName || !this.newContact.relationship || !this.newContact.phoneNumber) return;
+    this.isSaving.set(true);
+    this.http.post(`/api/patients/${this.patientId}/emergency-contacts`, this.newContact).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.showContactForm.set(false);
+        this.newContact = { fullName: '', relationship: '', phoneNumber: '', email: '', isPrimary: false };
+        this.showSuccess('Emergency contact added');
+        this.loadProfile();
+      },
+      error: () => this.isSaving.set(false)
+    });
+  }
+
+  saveAllergy() {
+    if (!this.newAllergy.allergyName) return;
+    this.isSaving.set(true);
+    this.http.post(`/api/patients/${this.patientId}/allergies`, {
+      allergyName: this.newAllergy.allergyName,
+      reaction: this.newAllergy.reaction,
+      severity: parseInt(this.newAllergy.severity)
+    }).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.showAllergyForm.set(false);
+        this.newAllergy = { allergyName: '', reaction: '', severity: '1' };
+        this.showSuccess('Allergy recorded');
+        this.loadProfile();
+      },
+      error: () => this.isSaving.set(false)
+    });
+  }
+
+  saveContactDetails() {
+    this.isSaving.set(true);
+    this.http.put(`/api/patients/${this.patientId}/contact-details`, { email: this.editEmail, phoneNumber: this.editPhone }).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.showEditContact.set(false);
+        this.showSuccess('Contact details updated');
+        this.loadProfile();
+      },
+      error: () => this.isSaving.set(false)
+    });
+  }
+
+  archivePatient() {
+    const reason = prompt('Enter archive reason:');
+    if (!reason) return;
+    this.http.post(`/api/patients/${this.patientId}/archive`, { reason }).subscribe({
+      next: () => { this.showSuccess('Patient archived'); this.loadProfile(); },
+      error: () => {}
+    });
   }
 
   getSeverityClass(severity: string): string {
     switch (severity) {
-      case 'Severe': return 'badge-error';
-      case 'Moderate': return 'badge-warning';
-      case 'Mild': return 'badge-info';
-      default: return 'badge-ghost';
+      case 'Severe': case 'LifeThreatening': return 'bg-red-100 text-red-800';
+      case 'Moderate': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-green-100 text-green-800';
     }
   }
 
-  getAppointmentStatusClass(status: string): string {
-    switch (status) {
-      case 'Booked': return 'badge-info';
-      case 'Arrived': return 'badge-success';
-      case 'Completed': return 'badge-secondary';
-      case 'Cancelled': return 'badge-error';
-      case 'NoShow': return 'badge-warning';
-      default: return 'badge-ghost';
-    }
-  }
-
-  archivePatient() {
-    this.http.put(`/api/patients/${this.patientId}/archive`, {}).subscribe({
-      next: () => this.loadProfile(),
-      error: () => {}
-    });
-  }
-
-  reactivatePatient() {
-    this.http.put(`/api/patients/${this.patientId}/reactivate`, {}).subscribe({
-      next: () => this.loadProfile(),
-      error: () => {}
-    });
-  }
-
-  addAddress() {
-    this.router.navigate(['/patients', this.patientId, 'add-address']);
-  }
-
-  addEmergencyContact() {
-    this.router.navigate(['/patients', this.patientId, 'add-contact']);
-  }
-
-  addAllergyRecord() {
-    this.router.navigate(['/patients', this.patientId, 'add-allergy']);
+  private showSuccess(msg: string) {
+    this.successMsg.set(msg);
+    setTimeout(() => this.successMsg.set(null), 3000);
   }
 }
