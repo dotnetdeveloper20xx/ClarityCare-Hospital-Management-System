@@ -649,6 +649,7 @@ This project is licensed under the terms specified in the [LICENSE](LICENSE) fil
 ## Contact
 
 For demonstrations, pricing, implementation planning, or partnership enquiries, please contact the ClarityCare team.
+https://dotnetdeveloper.co.uk
 
 ---
 
